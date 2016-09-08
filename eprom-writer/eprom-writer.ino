@@ -1,18 +1,28 @@
-// sketch to write 2532 EPROMs
+// sketch to write 2532 and 2516 EPROMs
 // data to write is placed in a static array in the sketch
 //
+// set the chip type by #defining ROM_TYPE as TMS2532 or TMS2516
+//
 // set the VPP switch to 5V before powering up
-// once LEDx lights up, set VPP switch to select the programming voltage
+// when LED1 and LED2 will flash alternately, set VPP switch to select the programming voltage
 // open the serial monitor to start programming
 // when finished, switch VPP back to 5V and disconnect the Arduino
 
 
-  #define DATA_LENGTH 4096
-  
-  const PROGMEM byte ROM_DATA[DATA_LENGTH]=
-  {
-    // your data here!
-  };
+#define DATA_LENGTH 0x0000
+const PROGMEM byte ROM_DATA[DATA_LENGTH]=
+{
+// your EPROM code here!
+};
+
+
+// define chip types
+#define TMS2532 0
+#define TMS2516 1
+
+// select the programming algorithm
+#define ROM_TYPE  TMS2532
+//#define ROM_TYPE  TMS2516
 
 // address lines
 #define AD11  A2
@@ -42,6 +52,32 @@
 #define PD    14 // power down/!program
 #define VPP   15 // programming voltage select (5V/25V) (not used, yet!)
 
+void setDataOutput(void)
+{
+  // init data pins to output (write mode)
+  pinMode(D0, OUTPUT);
+  pinMode(D1, OUTPUT);
+  pinMode(D2, OUTPUT);
+  pinMode(D3, OUTPUT);
+  pinMode(D4, OUTPUT);
+  pinMode(D5, OUTPUT);
+  pinMode(D6, OUTPUT);
+  pinMode(D7, OUTPUT);
+}
+
+void setDataInput(void)
+{
+  // init data pins
+  pinMode(D0, INPUT);
+  pinMode(D1, INPUT);
+  pinMode(D2, INPUT);
+  pinMode(D3, INPUT);
+  pinMode(D4, INPUT);
+  pinMode(D5, INPUT);
+  pinMode(D6, INPUT);
+  pinMode(D7, INPUT);
+}
+
 void setAddress(unsigned int address)
 {
   digitalWrite(AD0,  address&0x001?HIGH:LOW);
@@ -55,7 +91,10 @@ void setAddress(unsigned int address)
   digitalWrite(AD8,  address&0x100?HIGH:LOW);
   digitalWrite(AD9,  address&0x200?HIGH:LOW);
   digitalWrite(AD10, address&0x400?HIGH:LOW);
-  digitalWrite(AD11, address&0x800?HIGH:LOW);
+
+  // only 2532 devices have the AD11 line
+  if(ROM_TYPE==TMS2532)
+    digitalWrite(AD11, address&0x800?HIGH:LOW);
 }
 
 void writeData(byte data)
@@ -70,8 +109,34 @@ void writeData(byte data)
   digitalWrite(D7,  data&0x80?HIGH:LOW);
 }
 
-void programByte(byte data, unsigned int address)
+byte readData(void)
 {
+  byte data = 0;
+ 
+  data|=digitalRead(D0)==HIGH?0x01:0x00;
+  data|=digitalRead(D1)==HIGH?0x02:0x00;
+  data|=digitalRead(D2)==HIGH?0x04:0x00;
+  data|=digitalRead(D3)==HIGH?0x08:0x00;
+  data|=digitalRead(D4)==HIGH?0x10:0x00;
+  data|=digitalRead(D5)==HIGH?0x20:0x00;
+  data|=digitalRead(D6)==HIGH?0x40:0x00;
+  data|=digitalRead(D7)==HIGH?0x80:0x00;
+
+  return data;
+}
+
+// program and verify byte
+int programByte(byte data, unsigned int address)
+{
+  byte rdata;
+
+  // no point in writing 0xFF to an EPROM
+  if(data==0xff)
+  {
+    Serial.println("");
+    return 0;
+  }
+  
   // set up address and data
   setAddress(address);
   writeData(data);
@@ -79,30 +144,87 @@ void programByte(byte data, unsigned int address)
   // wait for address and data to settle (probably unnecessary)
   delay(1);
 
-  // programming pulse to write data
-  digitalWrite(PD,LOW);
-  delay(50);// 50ms
-  digitalWrite(PD,HIGH);
+  if(ROM_TYPE==TMS2532)
+  {
+    // programming pulse to write data
+    digitalWrite(PD,LOW);
+    delay(50);// 50ms
+    digitalWrite(PD,HIGH);
+
+    // we can't verify the byte when writing to 2532s
+    // because we can't control VPP programatically 
+  
+  }
+
+  // on 2516:
+  //  PD is CS
+  // AD11 is PD
+  if(ROM_TYPE==TMS2516)
+  {
+    // programming pulse to write data
+    digitalWrite(AD11, HIGH);
+    delay(50);// 50ms
+    digitalWrite(AD11, LOW);
+
+    // read byte back to verify
+    delay(1);
+  
+    setDataInput();
+    digitalWrite(PD, LOW);
+  
+    delay(1);
+  
+    rdata = readData();
+        
+    digitalWrite(PD, HIGH);
+    setDataOutput();  
+
+    if(rdata!=data)
+    {
+      Serial.print("... Error writing byte, read back 0x");
+      Serial.print((rdata>>4)&0x0f, HEX);
+      Serial.print(rdata&0x0f, HEX);
+      //return -1;
+    }
+    else
+    {
+      Serial.print("... OK");
+    }
+      
+  }
+
+  Serial.println("");
+
+  return 0;
 }
 
 // program some bytes
 void programBytes(void)
 {
   unsigned int address,ptr;
+  int result;
 
   for(address=0,ptr=0;address<DATA_LENGTH;address++,ptr++)
   {
     // read data byte from flash
     byte data = pgm_read_byte_near(ROM_DATA+address);
     
-    programByte(data,address);
-    Serial.print("Wrote byte ");
+    Serial.print("Writing byte 0x");
     Serial.print((data>>4)&0x0f, HEX);
     Serial.print(data&0x0f, HEX);
-    Serial.print(" to ");
+    Serial.print(" to 0x");
     Serial.print((address>>8)&0x0f, HEX); // address
     Serial.print((address>>4)&0x0f, HEX); // address 
-    Serial.println(address&0x0f, HEX);  // address
+    Serial.print(address&0x0f, HEX);  // address
+
+    result = programByte(data,address);
+
+    // if byte not read back ok then stop programming
+    if(result<0)
+    {
+      return;
+    }
+    
   }
 }
 
@@ -133,22 +255,43 @@ void setup() {
 
   setAddress(0x000);
 
-  // init data pins to output (write mode)
-  pinMode(D0, OUTPUT);
-  pinMode(D1, OUTPUT);
-  pinMode(D2, OUTPUT);
-  pinMode(D3, OUTPUT);
-  pinMode(D4, OUTPUT);
-  pinMode(D5, OUTPUT);
-  pinMode(D6, OUTPUT);
-  pinMode(D7, OUTPUT);
+  setDataOutput();
 
   writeData(0xff);
 
   Serial.begin(9600);
    
-  // while the serial stream is not open, do nothing:
-  while (!Serial) 
+  // while the serial stream is not open, alternately flash LED1 & LED2
+  // to show the device is ready for VPP to be applied
+  while (!Serial)
+  {
+    digitalWrite(AD0, HIGH);
+    digitalWrite(D1,  LOW);
+    delay(500);
+    digitalWrite(AD0, LOW);
+    digitalWrite(D1,  HIGH);
+    delay(500);
+  }
+
+  // tuen LEDs off
+  digitalWrite(AD0, LOW);
+  digitalWrite(D1,  LOW);
+
+  if(ROM_TYPE==TMS2532)
+  {
+    Serial.println("Programming 2532 device");
+  }
+
+  if(ROM_TYPE==TMS2516)
+  {
+    Serial.println("Programming 2516 device");
+    
+    // on 2516:
+  //  PD is CS
+  // AD11 is PD
+    digitalWrite(PD, HIGH);
+    digitalWrite(AD11, LOW);
+  }
 
   delay(100);
 
