@@ -77,8 +77,9 @@ void dumpRomText(void)
   unsigned int address;
   byte data;
   String textDump;
-
-  for(address=0x0000;address<0x1000;address++)
+  
+  for(address=0x0000;address<0x1000;address++)//2532
+ // for(address=0x0000;address<0x800;address++)//2516
   {
     if(address%0x010==0)
     {
@@ -122,7 +123,8 @@ void dumpRomIntelHex(void)
   byte data;
   byte csum;
 
-  for(address=0x0000;address<0x1000;address++)
+  for(address=0x0000;address<0x1000;address++)//2532
+//  for(address=0x0000;address<0x800;address++)//2516
   {
     if(address%0x010==0)
     {
@@ -195,13 +197,22 @@ void setup() {
 
   Serial.begin(9600);
   
-  // while the serial stream is not open, do nothing:
-  while (!Serial) 
+  // while the serial stream is not open, blink LED1 and LED2:
+  while (!Serial)
+  {
+    digitalWrite(AD0, HIGH);
+    digitalWrite(D1,  HIGH);
+    delay(500);
+    digitalWrite(AD0, LOW);
+    digitalWrite(D1,  LOW);
+    delay(500);
+  }
+
 
   delay(100);
 
   // dump the ROM contents in the format of your choice
-  //dumpRomText();
+ // dumpRomText();
   dumpRomIntelHex();
 }
 
