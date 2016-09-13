@@ -9,6 +9,7 @@
 // programmer will perform blank check, program device and verify data was written ok
 // serial output will prompt you to apply/disconnect VPP at the appropriate points
 
+// put your EPROM image in 'image.h' 
 #include "image.h"
 
 // define chip types
