@@ -165,7 +165,7 @@ void dumpRomIntelHex(void)
 // the setup function runs once when you press reset or power the board
 void setup() {
 
-  // ensable chip
+  // enable chip
   pinMode(PD, OUTPUT);
   digitalWrite(PD,LOW);
 

@@ -13,10 +13,9 @@ Comment/uncomment dumpRomText() and dumpRomIntelHex() to select desired output f
 Comment/uncomment the appropriate 'for' loop to read 4k or 2k ROMs
 
 ## Writing data
-Data to write is placed in a static array in the sketch
+Data to write is placed in a static array in 'image.h' - use bin2c to convert binary files to a 'C' array compatible with this sketch.
 Set the VPP switch to 5V before powering up
-Once LED1 and LED2 are flashing alternately, set VPP switch to select the programming voltage
-Open the serial monitor to start programming
+Once LED1 and LED2 are flashing alternately open the serial monitor and follow the instrictions to start programming
 When finished, switch VPP back to 5V and disconnect the Arduino
 
 Circuit diagram to follow...

@@ -4,17 +4,12 @@
 // set the chip type by #defining ROM_TYPE as TMS2532 or TMS2516
 //
 // set the VPP switch to 5V before powering up
-// when LED1 and LED2 will flash alternately, set VPP switch to select the programming voltage
-// open the serial monitor to start programming
-// when finished, switch VPP back to 5V and disconnect the Arduino
+// when LED1 and LED2 will flash alternately
+// open the serial monitor to start
+// programmer will perform blank check, program device and verify data was written ok
+// serial output will prompt you to apply/disconnect VPP at the appropriate points
 
-
-#define DATA_LENGTH 0x0000
-const PROGMEM byte ROM_DATA[DATA_LENGTH]=
-{
-// your EPROM code here!
-};
-
+#include "image.h"
 
 // define chip types
 #define TMS2532 0
@@ -124,6 +119,77 @@ byte readData(void)
 
   return data;
 }
+
+
+// make sure the device is blank (all locations 0xFF)
+// or verify the program was written ok
+bool verify(bool verifyProgram)
+{
+  unsigned int address;
+  byte data;
+  String textDump;
+  bool success=true;
+  
+  for(address=0x0000;address<DATA_LENGTH;address++)//2532 or 2516
+  {
+    if(address%0x010==0)
+    {
+      Serial.print("  ");
+      Serial.println(textDump);
+      
+      Serial.print("0x0");
+      Serial.print((address>>8)&0x0f, HEX); 
+      Serial.print((address>>4)&0x0f, HEX); 
+      Serial.print(address&0x0f, HEX); 
+      Serial.print("  ");
+
+      textDump="";
+    }
+
+    setAddress(address);
+    data = readData();
+
+  // blank check or program check
+    if(verifyProgram)
+    {
+      if(data!=pgm_read_byte_near(ROM_DATA+address))
+      {
+        Serial.print("*");// mark bad bytes
+        success=false;
+      }
+      else
+      {
+        Serial.print(" ");
+      }
+    }
+    else
+    {
+      if(data!=0xff)
+        success=false;
+    }
+    
+    Serial.print(data>>4, HEX); 
+    Serial.print(data&0xf, HEX); 
+    Serial.print(" ");
+
+    if(data>31 && data<127)
+    {
+      char ch = (char)data;
+      textDump+=ch;
+    }
+    else
+    {
+      textDump+='.';
+    }
+  }
+
+  Serial.print("  ");
+  Serial.println(textDump);
+
+  return success;
+
+}
+
 
 // program and verify byte
 int programByte(byte data, unsigned int address)
@@ -293,12 +359,45 @@ void setup() {
     digitalWrite(AD11, LOW);
   }
 
-  delay(100);
+setDataInput();
+digitalWrite(PD,LOW);
 
+  Serial.println("Starting blank check...");
+  if(verify(false)!=true)
+  {
+    Serial.println("Device not blank, stopping.");
+    return;    
+  }
+
+digitalWrite(PD,HIGH);// important to set this high before VPP is applied
+digitalWrite(AD11, LOW);// similarly for 2516
+setDataOutput();
+
+ while (Serial.available())
+ Serial.read();
+  Serial.println("Device is blank, connect VPP and press any key to start programming");
+  while(!Serial.available()) ;
+
+  delay(100);
   programBytes();
 
+  while (Serial.available())
+    Serial.read();
+
+  Serial.println("Disconnect VPP, then press any key to verify ");
+  while(!Serial.available()) ;
+
+digitalWrite(PD,LOW);
+setDataInput();
+
+  if(verify(true)!=true)
+  {
+    Serial.println("Error programming EPROM :(");
+    return;    
+  }
+
+  Serial.println("EPROM programmed successfully! :)");
   Serial.println("Finished.");
-  
 }
 
 // the loop function runs over and over again forever
