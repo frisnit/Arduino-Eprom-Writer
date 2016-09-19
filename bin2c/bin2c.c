@@ -7,8 +7,20 @@ for Arduino EPROM writer
 
 */
 
-#include "stdlib.h"
-#include "stdio.h"
+#include <sys/time.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+void getTimestamp(char *timestamp)
+{
+	time_t ltime;
+	ltime=time(NULL);
+	struct tm *tm;
+	tm=localtime(&ltime);
+
+	sprintf(timestamp,"/* generated on %04d-%02d-%02d at %02d:%02d:%02d */", tm->tm_year+1900, tm->tm_mon, 
+	    tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+}
 
 int main(int argc, char *argv[])
 {
@@ -50,6 +62,10 @@ int main(int argc, char *argv[])
 	filesize = ftell(in);
 	rewind(in);
 
+	getTimestamp(outfilename);
+
+	fprintf(out,"%s\n",outfilename);
+
 	fprintf(out,"#define DATA_LENGTH 0x%04x\n",(unsigned int)(filesize&0xffff));
 	fprintf(out,"const PROGMEM byte ROM_DATA[DATA_LENGTH]=\n{");
 
@@ -66,9 +82,9 @@ int main(int argc, char *argv[])
 		fprintf(out,"0x%02x, ",(unsigned char)(c&0xff));
 	}
 
-	fprintf(out,"\n};");
+	fprintf(out,"\n};\n\n");
 
-	printf("Finished, read %d bytes\n\n",(unsigned int)filesize);
+	printf("Finished, read 0x%04x bytes\n\n",(unsigned int)filesize);
 
 	fclose(in);
 	fclose(out);
