@@ -33,4 +33,4 @@ This is my circuit, but you can wire it up how you like as long as you update th
 ![EPROM programmer schematic](/schematic.png)
 
 And here's what it looks like, built on a prototyping shield:
-![EPROM programmer schematic](/programmer.png)
+![EPROM programmer schematic](/programmer.jpg)
