@@ -78,8 +78,9 @@ void dumpRomText(void)
   byte data;
   String textDump;
   
-  for(address=0x0000;address<0x1000;address++)//2532
- // for(address=0x0000;address<0x800;address++)//2516
+  // comment/uncomment these lines to select 4k or 2k EPROM devices
+  for(address=0x0000;address<0x1000;address++)//2532 (4k)
+ // for(address=0x0000;address<0x800;address++)//2516 (2k)
   {
     if(address%0x010==0)
     {
@@ -123,6 +124,7 @@ void dumpRomIntelHex(void)
   byte data;
   byte csum;
 
+  // comment/uncomment these lines to select 4k or 2k EPROM devices
   for(address=0x0000;address<0x1000;address++)//2532
 //  for(address=0x0000;address<0x800;address++)//2516
   {

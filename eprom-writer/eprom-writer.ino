@@ -17,6 +17,7 @@
 #define TMS2516 1
 
 // select the programming algorithm
+// comment/uncomment these lines to select 4k or 2k EPROM devices
 #define ROM_TYPE  TMS2532
 //#define ROM_TYPE  TMS2516
 
